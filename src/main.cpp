@@ -5,48 +5,32 @@
 
 using namespace std;
 
-template <typename T>
-unique_ptr<T> unique_from(T&& t)
-{
-    return make_unique<T>(std::move(t));
-}
-
 int main()
 {
-    vector<TokPtr> tokens;
-    
-    auto p = [&](auto&& t)
+    auto name   = [](char const* s) { return VarTok{s}; };
+    auto num    = [](int i)         { return NumTok{i}; };
+    auto lpar   = LParTok{};
+    auto rpar   = RParTok{};
+    auto lbrace = LBraceTok{};
+    auto rbrace = RBraceTok{};
+    auto comma  = CommaTok{};
+    auto semi   = SemiTok{};
+    auto assign = AssignTok{};
+
+    vector<Tok> tokens
     {
-       tokens.push_back(unique_from(std::move(t))); 
+        name("ret"),
+        name("fun"),
+        lpar,
+            name("type1"), name("arg1"),
+            comma,
+            name("type2"), name("arg2"),
+        rpar,
+        lbrace,
+            name("int"), name("x"), assign, num(80), semi,
+            name("flt"), name("y"), assign, num(90), semi,
+        rbrace,
     };
-
-    auto name = [&](auto&& n) { p(VarTok(n)); };
-    auto num = [&](auto&& n) { p(NumTok(n)); };
-
-    auto lpar = [&]() { p(LParTok()); };
-    auto rpar = [&]() { p(RParTok()); };
-    
-    name("ret");
-    name("fun");
-    lpar();
-    name("type1");
-    name("arg1");
-    p(CommaTok());
-    name("type2");
-    name("arg2");
-    rpar();
-    p(LBraceTok());
-    name("int");
-    name("x");
-    p(AssignTok());
-    num(80);
-    p(SemiTok());
-    name("float");
-    name("y");
-    p(AssignTok());
-    num(90);
-    p(SemiTok());
-    p(RBraceTok());
 
     auto r = parse(tokens);
     

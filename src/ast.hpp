@@ -6,7 +6,6 @@
 
 using std::string;
 using std::vector;
-using std::unique_ptr;
 using std::shared_ptr;
 
 enum class Op { opAdd, opSub, opMul, opDiv, opAnd, opOr, opNot, opNeg };

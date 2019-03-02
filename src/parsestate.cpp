@@ -1,13 +1,13 @@
 #include "parsestate.hpp"
 
-ParseState::ParseState(vector<TokPtr> const& tokens)
+ParseState::ParseState(vector<Tok> const& tokens)
     : _tokens(tokens)
     , _tracer("", 2)
 {}
 
-Tok const* ParseState::cur_unchecked() const
+Tok const& ParseState::cur_unchecked() const
 {
-    return _tokens[_pos].get();
+    return _tokens[_pos];
 }
 
 bool ParseState::at_end() const
@@ -22,13 +22,15 @@ unsigned ParseState::pos() const
 
 Tok const& ParseState::cur() const
 {
+    static Tok const end = EndTok{};
+
     if (at_end())
     {
-        return _end;
+        return end;
     }
     else
     {
-        return *cur_unchecked();
+        return cur_unchecked();
     }
 }
 

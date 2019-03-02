@@ -9,6 +9,8 @@ add_executable(prs
     src/main.cpp
     src/parser.cpp
     src/parsestate.cpp
+    src/tokens.cpp
+    src/tracer.cpp
     )
 
 target_link_libraries(prs
@@ -30,7 +32,6 @@ target_compile_options(prs
         -g
         -ggdb
         -fsanitize=address 
-    
         -Werror
         -Wshadow
         -Wnon-virtual-dtor

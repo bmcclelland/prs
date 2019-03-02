@@ -9,22 +9,14 @@ using std::vector;
 class ParseState
 {
     private:
-        struct EndTok : Tok
-        {
-            string to_string() const { return "END"; }
-        };
-
-        static inline EndTok const _end;
-    
-    private:
-        vector<TokPtr> const& _tokens;
+        vector<Tok> const& _tokens;
         Tracer _tracer;
         unsigned _pos = 0;
         
-        Tok const* cur_unchecked() const;
+        Tok const& cur_unchecked() const;
 
     public:
-        ParseState(vector<TokPtr> const&);
+        ParseState(vector<Tok> const&);
        
         bool at_end() const;
         unsigned pos() const;
@@ -46,7 +38,7 @@ T const* ParseState::match()
         return nullptr;
     }
 
-    T const* t = dynamic_cast<T const*>(cur_unchecked());
+    T const* t = std::get_if<T>(&cur_unchecked());
 
     if (!t)
     {

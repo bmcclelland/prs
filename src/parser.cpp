@@ -2,6 +2,7 @@
 #include "tokens.hpp"
 #include "parsestate.hpp"
 #include "parsercombi.hpp"
+#include <iostream>
 
 using namespace std;
 
@@ -21,9 +22,9 @@ auto construct = [](auto&&... args) -> Parsed<T>
 };
 
 template <typename T>
-Parser<Op> parse_op(Op t)
+Parser<Op> parse_op(Op op)
 {
-    return match<T>() >> value(t);
+    return match<T>() >> value(op);
 }
 
 
@@ -246,8 +247,9 @@ Parser<ASTPtr> parse_program()
         >> make_ast<ASTProgram>;
 }
 
-Parsed<ASTPtr> parse(vector<TokPtr>const& tokens)
+Parsed<ASTPtr> parse(vector<Tok>const& tokens)
 {
+    std::cout << "Parsing " << to_string(tokens) << "\n";
     ParseState state(tokens);
     Parser<ASTPtr> parser = parse_program();
     Parsed<ASTPtr> result = parser(state);

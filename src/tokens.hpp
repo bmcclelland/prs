@@ -2,46 +2,54 @@
 
 #include <string>
 #include <memory>
+#include <variant>
+#include <vector>
 
+using std::variant;
 using std::string;
 using std::to_string;
-using std::unique_ptr;
+using std::vector;
 
-struct Tok
-{
-    virtual ~Tok() {}
-    virtual string to_string() const = 0;
-};
-
-using TokPtr = unique_ptr<Tok>;
-
-struct NumTok : Tok
+struct NumTok
 {
     int value;
-    string to_string() const { return std::to_string(value); }
-    NumTok(int x) : value(x) {}
 };
 
-struct VarTok : Tok
+struct VarTok
 {
     string value;
-    string to_string() const { return value; }
-    VarTok(string x) : value(x) {}
 };
 
-#define OPTOK(T, s) struct T : Tok { string to_string() const { return s; }}
+struct EndTok {};
+struct LParTok {};
+struct RParTok {};
+struct LBraceTok {};
+struct RBraceTok {};
+struct CommaTok {};
+struct SemiTok {};
+struct AddTok {};
+struct SubTok {};
+struct MulTok {};
+struct DivTok {};
+struct AndTok {};
+struct OrTok {};
+struct NegTok {};
+struct NotTok {};
+struct AssignTok {};
 
-OPTOK(LParTok,   "(");
-OPTOK(RParTok,   ")");
-OPTOK(LBraceTok, "{");
-OPTOK(RBraceTok, "}");
-OPTOK(CommaTok,  ",");
-OPTOK(SemiTok,   ";");
-OPTOK(AddTok,    "+");
-OPTOK(SubTok,    "-");
-OPTOK(MulTok,    "*");
-OPTOK(DivTok,    "/");
-OPTOK(AndTok,    "&&");
-OPTOK(OrTok,     "||");
-OPTOK(NotTok,    "!");
-OPTOK(AssignTok, "=");
+using Tok = variant<
+    EndTok,
+    NumTok,
+    VarTok,
+    LParTok, RParTok,
+    LBraceTok, RBraceTok,
+    CommaTok,
+    SemiTok,
+    AddTok, SubTok, MulTok, DivTok,
+    AndTok, OrTok,
+    NegTok, NotTok,
+    AssignTok
+    >;
+
+string to_string(Tok const&);
+string to_string(vector<Tok> const&);

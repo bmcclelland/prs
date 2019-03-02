@@ -26,11 +26,12 @@ using Parser = RParser<Parsed<Ts...>>;
 template <typename R, typename... Ts>
 using Finisher = function<Parsed<R>(Ts...)>;
 
-#define TRACE TraceTag{__func__}
-#define MEMO  MemoTag{__func__}
 struct TraceTag { string func; };
 struct MemoTag  { string func; };
 struct NullTag {};
+
+#define TRACE TraceTag{__func__}
+#define MEMO  MemoTag{__func__}
 
 template <typename... R>
 Parser<R...> operator /=(NullTag const&, Parser<R...> const& p)
@@ -43,7 +44,7 @@ Parser<R...> operator /=(TraceTag const& trace, Parser<R...> const& p)
 {
     return [=](ParseState& s) -> Parsed<R...>
     {
-        s.push_trace(trace.func + " " + s.cur().to_string());
+        s.push_trace(trace.func + " " + to_string(s.cur()));
 
         auto r = p(s);
 
