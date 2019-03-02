@@ -37,13 +37,13 @@ Parser<R> operator /=(string const& func, Parser<R> const& p)
 //// HELPERS ////
 
 template <typename T>
-auto construct = [](auto&&... args) -> Parsed<ASTPtr>
+auto make_ast = [](auto&&... args) -> Parsed<ASTPtr>
 {
     return make_unique<T>(std::move(args)...);
 };
 
 template <typename T>
-Parser<Op> match_op(Op t)
+Parser<Op> parse_op(Op t)
 {
     return match<T> >> value(t);
 }
@@ -109,44 +109,44 @@ Parser<> parse_end = [](State& s) -> Parsed<>
 Parser<Op> parse_unary_op()
 {
     return TRACE
-        /= match_op<NotTok>(Op::opNot)
-         | match_op<SubTok>(Op::opNeg);
+        /= parse_op<NotTok>(Op::opNot)
+         | parse_op<SubTok>(Op::opNeg);
 }
 
 Parser<Op> parse_multive_op()
 {
     return TRACE
-        /= match_op<MulTok>(Op::opMul) 
-         | match_op<DivTok>(Op::opDiv);
+        /= parse_op<MulTok>(Op::opMul) 
+         | parse_op<DivTok>(Op::opDiv);
 }
 
 Parser<Op> parse_additive_op() 
 {
     return TRACE
-        /= match_op<AddTok>(Op::opAdd) 
-         | match_op<SubTok>(Op::opSub);
+        /= parse_op<AddTok>(Op::opAdd) 
+         | parse_op<SubTok>(Op::opSub);
 }
 
 Parser<Op> parse_logical_op() 
 {
     return TRACE
-        /= match_op<AndTok>(Op::opAnd)
-         | match_op<OrTok>(Op::opOr);
+        /= parse_op<AndTok>(Op::opAnd)
+         | parse_op<OrTok>(Op::opOr);
 }
 
 Parser<ASTPtr> parse_unary()
 {
     return TRACE
         /= parse_unary_op()
-        >> thunk(parse_primary) 
-        >> construct<ASTUnop>;
+        >> lazy(parse_primary) 
+        >> make_ast<ASTUnop>;
 }
 
 Parser<ASTPtr> parse_parens_exp()
 {
     return TRACE
         /= match<LParTok> 
-        >> thunk(parse_exp) 
+        >> lazy(parse_exp) 
         >> match<RParTok>;
 }
 
@@ -164,8 +164,8 @@ Parser<ASTPtr> parse_multive()
     return TRACE
         /= parse_primary()
         >> parse_multive_op()
-        >> thunk(parse_multive) 
-        >> construct<ASTBinop>
+        >> lazy(parse_multive) 
+        >> make_ast<ASTBinop>
          | parse_primary();
 }
 
@@ -174,8 +174,8 @@ Parser<ASTPtr> parse_additive()
     return TRACE
         /= parse_multive() 
         >> parse_additive_op()
-        >> thunk(parse_additive)
-        >> construct<ASTBinop>
+        >> lazy(parse_additive)
+        >> make_ast<ASTBinop>
          | parse_multive();
 }
 
@@ -184,8 +184,8 @@ Parser<ASTPtr> parse_logical()
     return TRACE
         /= parse_additive()
         >> parse_logical_op()
-        >> thunk(parse_logical) 
-        >> construct<ASTBinop>
+        >> lazy(parse_logical) 
+        >> make_ast<ASTBinop>
          | parse_additive();
 }
 
@@ -202,7 +202,7 @@ Parser<ASTPtr> parse_var_decl()
         >> parse_var_value()
         >> match<AssignTok> 
         >> parse_exp() 
-        >> construct<ASTVarDecl>;
+        >> make_ast<ASTVarDecl>;
 }
 
 Parser<ASTPtr> parse_program()

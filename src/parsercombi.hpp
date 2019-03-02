@@ -5,14 +5,11 @@
 #include <optional>
 #include <tuple>
 #include <functional>
-#include <iostream>
-#include <set>
 
 using std::optional;
 using std::nullopt;
 using std::tuple;
 using std::function;
-using std::set;
 
 template <typename... Ts>
 using Parsed = optional<tuple<Ts...>>;
@@ -36,52 +33,24 @@ Finisher<T> value(T t)
 }
 
 template <typename P>
-Parser<P> thunk(Parser<P>(&f)())
+Parser<P> lazy(Parser<P>(&f)())
 {
     return [&f](State& s) -> Parsed<P>
     {
-        static set<unsigned> fails;
-        unsigned pos = s.pos;
-
-        if (fails.count(pos))
-        {
-            return nullopt;
-        }
-
-        auto r = f()(s);
-
-        if (!r)
-        {
-            fails.insert(pos);
-        }
-
-        return r;
+        static Parser<P> const p = f();
+        return p(s);
     };
 }
 
 template <typename F,
     typename G = std::invoke_result_t<F>,
     typename R = std::invoke_result_t<G,State&>>
-RParser<R> thunk(F const& f)
+RParser<R> lazy(F const& f)
 {
     return [f](State& s) -> R
     {
-        static set<unsigned> fails;
-        unsigned pos = s.pos;
-
-        if (fails.count(pos))
-        {
-            return nullopt;
-        }
-
-        auto r = f()(s);
-
-        if (!r)
-        {
-            fails.insert(pos);
-        }
-
-        return r;
+        static auto const p = f();
+        return p(s);
     };
 }
 
