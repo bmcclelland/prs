@@ -6,6 +6,7 @@
 #include <tuple>
 #include <functional>
 #include <unordered_map>
+#include <boost/core/demangle.hpp>
 
 using std::optional;
 using std::nullopt;
@@ -30,10 +31,10 @@ using Finisher = function<Parsed<R>(Ts...)>;
 struct TraceTag { string func; };
 struct MemoTag  { string func; };
 
-template <typename R>
-Parser<R> operator /=(TraceTag const& trace, Parser<R> const& p)
+template <typename... R>
+Parser<R...> operator /=(TraceTag const& trace, Parser<R...> const& p)
 {
-    return [=](State& s) -> Parsed<R>
+    return [=](State& s) -> Parsed<R...>
     {
         string tok = cur(s) ? cur(s)->to_string() : "END";
         s.tracer.push(trace.func + " " + tok);
@@ -53,12 +54,21 @@ Parser<R> operator /=(TraceTag const& trace, Parser<R> const& p)
     };
 }
 
-template <typename R>
-Parser<R> operator /=(MemoTag const& memo, Parser<R> const& p)
+template <typename... R>
+Parser<R...> operator /=(MemoTag const& memo, Parser<R...> const& p)
 {
-    return [=](State& s) -> Parsed<R>
+    return [=](State& s) -> Parsed<R...>
     {
-        static unordered_map<string, unordered_map<unsigned, Parsed<R>>> maps;
+        struct Memo
+        {
+            Parsed<R...> value;
+            unsigned end_pos;
+        };
+
+        using MemoMap = unordered_map<unsigned, Memo>;
+        
+        static unordered_map<string, MemoMap> maps; 
+       
         auto& map = maps[memo.func];
         unsigned const pos = s.pos;
 
@@ -66,15 +76,52 @@ Parser<R> operator /=(MemoTag const& memo, Parser<R> const& p)
 
         if (it != map.end())
         {
-            return it->second;
+            s.pos = it->second.end_pos;
+            return it->second.value;
         }
 
         auto r = p(s);
-        map.insert({pos, r});
+        map.insert({pos, Memo{r, s.pos}});
         return r;
     };
 }
 
+template <typename T>
+Parser<> match()
+{
+    Parser<> p = [](State& s) -> Parsed<>
+    {
+        T const* t = match_cur<T>(s);
+        
+        if (!t)
+            return nullopt;
+        
+        return tuple<>();
+    };
+
+    string Tname = boost::core::demangle(typeid(T).name());
+    return TraceTag{"match<" + Tname + ">"}
+        /= p;
+}
+
+inline
+Parser<> parse_end()
+{
+    Parser<> p = [](State& s) -> Parsed<>
+    {
+        if (at_end(s))
+        {
+            return tuple<>();
+        }
+        else
+        {
+            return nullopt;
+        }
+    };
+
+    return TRACE
+        /= p;
+}
 
 template <typename T>
 Finisher<T> value(T t)
@@ -117,18 +164,6 @@ Parser<T> parse_token = [](State& s) -> Parsed<T>
     
     return *t;
 };
-
-template <typename T>
-Parser<> match = [](State& s) -> Parsed<>
-{
-    T const* t = match_cur<T>(s);
-    
-    if (!t)
-        return nullopt;
-    
-    return tuple<>();
-};
-
 
 template <typename... P1, typename... P2>
 Parser<P1..., P2...> operator>>(Parser<P1...> const& p1, Parser<P2...> const& p2)
@@ -216,8 +251,8 @@ Parser<vector<P>> _parse_many(Parser<P> const& p, Parser<P> const& q)
     };
 }
 
-template <typename P, typename Q>
-Parser<vector<P>> parse_many(Parser<P> const& p)
+template <typename P>
+Parser<vector<P>> zero_or_more(Parser<P> const& p)
 {
     return _parse_many(p, p);
 }
@@ -225,7 +260,7 @@ Parser<vector<P>> parse_many(Parser<P> const& p)
 template <typename T, typename P>
 Parser<vector<P>> parse_listT(Parser<P> const& p)
 {
-    Parser<P> q = match<T> >> p;
+    Parser<P> q = match<T>() >> p;
     return _parse_many(p, q);
 }
 

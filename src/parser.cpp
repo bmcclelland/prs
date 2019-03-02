@@ -15,9 +15,15 @@ auto make_ast = [](auto&&... args) -> Parsed<ASTPtr>
 };
 
 template <typename T>
+auto construct = [](auto&&... args) -> Parsed<T>
+{
+    return T(std::move(args)...);
+};
+
+template <typename T>
 Parser<Op> parse_op(Op t)
 {
-    return match<T> >> value(t);
+    return match<T>() >> value(t);
 }
 
 
@@ -56,7 +62,7 @@ Parser<int> parse_num_value()
         };
 }
 
-Parser<string> parse_var_value()
+Parser<string> parse_name()
 {
     return TRACE
         /= parse_token<VarTok>
@@ -65,18 +71,6 @@ Parser<string> parse_var_value()
             return t.value;
         };
 }
-
-Parser<> parse_end = [](State& s) -> Parsed<>
-{
-    if (at_end(s))
-    {
-        return tuple<>();
-    }
-    else
-    {
-        return nullopt;
-    }
-};
 
 Parser<Op> parse_unary_op()
 {
@@ -123,9 +117,9 @@ Parser<ASTPtr> parse_parens_exp()
 {
     return TRACE
         /= MEMO
-        /= match<LParTok> 
+        /= match<LParTok>() 
         >> lazy(parse_exp) 
-        >> match<RParTok>;
+        >> match<RParTok>();
 }
 
 Parser<ASTPtr> parse_primary()
@@ -182,17 +176,73 @@ Parser<ASTPtr> parse_var_decl()
 {
     return TRACE
         /= MEMO
-        /= parse_var_value()
-        >> parse_var_value()
-        >> match<AssignTok> 
+        /= parse_name()
+        >> parse_name()
+        >> match<AssignTok>() 
         >> parse_exp() 
+        >> match<SemiTok>()
         >> make_ast<ASTVarDecl>;
+}
+
+Parser<ASTPtr> parse_assign()
+{
+    return TRACE
+        /= MEMO
+        /= parse_name()
+        >> match<AssignTok>()
+        >> parse_exp() 
+        >> match<SemiTok>()
+        >> make_ast<ASTAssign>;
+}
+
+Parser<ASTPtr> parse_stmt()
+{
+    return TRACE
+        /= parse_assign()
+         | parse_var_decl();
+}
+
+Parser<ASTPtr> parse_block()
+{
+    return TRACE
+        /= match<LBraceTok>()
+        >> zero_or_more(parse_stmt())
+        >> match<RBraceTok>()
+        >> make_ast<ASTBlock>;
+}
+
+Parser<Arg> parse_arg()
+{
+    return TRACE
+        /= parse_name()
+        >> parse_name()
+        >> construct<Arg>;
+}
+
+Parser<vector<Arg>> parse_formal_args()
+{
+    return TRACE
+        /= match<LParTok>()
+        >> parse_list(parse_arg())
+        >> match<RParTok>();
+}
+
+Parser<ASTPtr> parse_func()
+{
+    return TRACE
+        /= parse_name()
+        >> parse_name()
+        >> parse_formal_args()
+        >> parse_block()
+        >> make_ast<ASTFunc>;
 }
 
 Parser<ASTPtr> parse_program()
 {
     return TRACE
-        /= parse_logical();
+        /= zero_or_more(parse_func())
+        >> parse_end()
+        >> make_ast<ASTProgram>;
 }
 
 Parsed<ASTPtr> parse(vector<TokPtr>const& tokens)

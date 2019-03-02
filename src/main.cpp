@@ -19,19 +19,34 @@ int main()
     {
        tokens.push_back(unique_from(std::move(t))); 
     };
+
+    auto name = [&](auto&& n) { p(VarTok(n)); };
+    auto num = [&](auto&& n) { p(NumTok(n)); };
+
+    auto lpar = [&]() { p(LParTok()); };
+    auto rpar = [&]() { p(RParTok()); };
     
-    p(NotTok());
-    p(VarTok("var"));
-//    p(AddTok());
-//    p(NumTok(1));
-//    p(MulTok());
-//    p(NumTok(4));
-//    p(MulTok());
-//    p(NumTok(2));
-//    p(AddTok());
-//    p(NumTok(3));
-//    p(MulTok());
-//    p(NumTok(4));
+    name("ret");
+    name("fun");
+    lpar();
+    name("type1");
+    name("arg1");
+    p(CommaTok());
+    name("type2");
+    name("arg2");
+    rpar();
+    p(LBraceTok());
+    name("int");
+    name("x");
+    p(AssignTok());
+    num(80);
+    p(SemiTok());
+    name("float");
+    name("y");
+    p(AssignTok());
+    num(90);
+    p(SemiTok());
+    p(RBraceTok());
 
     auto r = parse(tokens);
     

@@ -31,14 +31,17 @@ struct VarTok : Tok
 
 #define OPTOK(T, s) struct T : Tok { string to_string() const { return s; }}
 
-OPTOK(LParTok,  "(");
-OPTOK(RParTok,  ")");
-OPTOK(CommaTok, ",");
-OPTOK(AddTok,   "+");
-OPTOK(SubTok,   "-");
-OPTOK(MulTok,   "*");
-OPTOK(DivTok,   "/");
-OPTOK(AndTok,   "&&");
-OPTOK(OrTok,    "||");
-OPTOK(NotTok,   "!");
+OPTOK(LParTok,   "(");
+OPTOK(RParTok,   ")");
+OPTOK(LBraceTok, "{");
+OPTOK(RBraceTok, "}");
+OPTOK(CommaTok,  ",");
+OPTOK(SemiTok,   ";");
+OPTOK(AddTok,    "+");
+OPTOK(SubTok,    "-");
+OPTOK(MulTok,    "*");
+OPTOK(DivTok,    "/");
+OPTOK(AndTok,    "&&");
+OPTOK(OrTok,     "||");
+OPTOK(NotTok,    "!");
 OPTOK(AssignTok, "=");
