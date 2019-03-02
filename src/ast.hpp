@@ -7,6 +7,7 @@
 using std::string;
 using std::vector;
 using std::unique_ptr;
+using std::shared_ptr;
 
 enum class Op { opAdd, opSub, opMul, opDiv, opAnd, opOr, opNot, opNeg };
 
@@ -34,7 +35,7 @@ struct AST
     virtual string to_string() const = 0;
 };
 
-using ASTPtr = unique_ptr<AST>;
+using ASTPtr = shared_ptr<AST>;
 
 struct ASTNum : AST
 {

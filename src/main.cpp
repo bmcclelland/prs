@@ -20,13 +20,18 @@ int main()
        tokens.push_back(unique_from(std::move(t))); 
     };
     
-    p(NumTok(1));
-    p(MulTok());
-    p(NumTok(2));
-    p(AddTok());
-    p(NumTok(3));
-    p(MulTok());
-    p(NumTok(4));
+    p(NotTok());
+    p(VarTok("var"));
+//    p(AddTok());
+//    p(NumTok(1));
+//    p(MulTok());
+//    p(NumTok(4));
+//    p(MulTok());
+//    p(NumTok(2));
+//    p(AddTok());
+//    p(NumTok(3));
+//    p(MulTok());
+//    p(NumTok(4));
 
     auto r = parse(tokens);
     

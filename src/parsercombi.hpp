@@ -5,11 +5,13 @@
 #include <optional>
 #include <tuple>
 #include <functional>
+#include <unordered_map>
 
 using std::optional;
 using std::nullopt;
 using std::tuple;
 using std::function;
+using std::unordered_map;
 
 template <typename... Ts>
 using Parsed = optional<tuple<Ts...>>;
@@ -22,6 +24,57 @@ using Parser = RParser<Parsed<Ts...>>;
 
 template <typename R, typename... Ts>
 using Finisher = function<Parsed<R>(Ts...)>;
+
+#define TRACE TraceTag{__func__}
+#define MEMO  MemoTag{__func__}
+struct TraceTag { string func; };
+struct MemoTag  { string func; };
+
+template <typename R>
+Parser<R> operator /=(TraceTag const& trace, Parser<R> const& p)
+{
+    return [=](State& s) -> Parsed<R>
+    {
+        string tok = cur(s) ? cur(s)->to_string() : "END";
+        s.tracer.push(trace.func + " " + tok);
+
+        auto r = p(s);
+
+        if (r)
+        {
+            s.tracer.pop(TraceResult::success);
+        }
+        else
+        {
+            s.tracer.pop(TraceResult::failure);
+        }
+
+        return r;
+    };
+}
+
+template <typename R>
+Parser<R> operator /=(MemoTag const& memo, Parser<R> const& p)
+{
+    return [=](State& s) -> Parsed<R>
+    {
+        static unordered_map<string, unordered_map<unsigned, Parsed<R>>> maps;
+        auto& map = maps[memo.func];
+        unsigned const pos = s.pos;
+
+        auto it = map.find(pos);
+
+        if (it != map.end())
+        {
+            return it->second;
+        }
+
+        auto r = p(s);
+        map.insert({pos, r});
+        return r;
+    };
+}
+
 
 template <typename T>
 Finisher<T> value(T t)
