@@ -1,6 +1,6 @@
 #pragma once
 
-#include "state.hpp"
+#include "parsestate.hpp"
 #include "tokens.hpp"
 #include <optional>
 #include <tuple>
@@ -18,7 +18,7 @@ template <typename... Ts>
 using Parsed = optional<tuple<Ts...>>;
 
 template <typename R>
-using RParser = function<R(State&)>;
+using RParser = function<R(ParseState&)>;
 
 template <typename... Ts>
 using Parser = RParser<Parsed<Ts...>>;
@@ -30,24 +30,30 @@ using Finisher = function<Parsed<R>(Ts...)>;
 #define MEMO  MemoTag{__func__}
 struct TraceTag { string func; };
 struct MemoTag  { string func; };
+struct NullTag {};
+
+template <typename... R>
+Parser<R...> operator /=(NullTag const&, Parser<R...> const& p)
+{
+    return p;
+}
 
 template <typename... R>
 Parser<R...> operator /=(TraceTag const& trace, Parser<R...> const& p)
 {
-    return [=](State& s) -> Parsed<R...>
+    return [=](ParseState& s) -> Parsed<R...>
     {
-        string tok = cur(s) ? cur(s)->to_string() : "END";
-        s.tracer.push(trace.func + " " + tok);
+        s.push_trace(trace.func + " " + s.cur().to_string());
 
         auto r = p(s);
 
         if (r)
         {
-            s.tracer.pop(TraceResult::success);
+            s.pop_trace_success();
         }
         else
         {
-            s.tracer.pop(TraceResult::failure);
+            s.pop_trace_failure();
         }
 
         return r;
@@ -57,7 +63,7 @@ Parser<R...> operator /=(TraceTag const& trace, Parser<R...> const& p)
 template <typename... R>
 Parser<R...> operator /=(MemoTag const& memo, Parser<R...> const& p)
 {
-    return [=](State& s) -> Parsed<R...>
+    return [=](ParseState& s) -> Parsed<R...>
     {
         struct Memo
         {
@@ -70,18 +76,19 @@ Parser<R...> operator /=(MemoTag const& memo, Parser<R...> const& p)
         static unordered_map<string, MemoMap> maps; 
        
         auto& map = maps[memo.func];
-        unsigned const pos = s.pos;
+        unsigned const start_pos = s.pos();
 
-        auto it = map.find(pos);
+        auto const it = map.find(start_pos);
 
         if (it != map.end())
         {
-            s.pos = it->second.end_pos;
+            s.set_pos(it->second.end_pos);
             return it->second.value;
         }
 
         auto r = p(s);
-        map.insert({pos, Memo{r, s.pos}});
+        unsigned const end_pos = s.pos();
+        map.insert({start_pos, Memo{r, end_pos}});
         return r;
     };
 }
@@ -89,9 +96,9 @@ Parser<R...> operator /=(MemoTag const& memo, Parser<R...> const& p)
 template <typename T>
 Parser<> match()
 {
-    Parser<> p = [](State& s) -> Parsed<>
+    Parser<> p = [](ParseState& s) -> Parsed<>
     {
-        T const* t = match_cur<T>(s);
+        T const* t = s.match<T>();
         
         if (!t)
             return nullopt;
@@ -107,9 +114,9 @@ Parser<> match()
 inline
 Parser<> parse_end()
 {
-    Parser<> p = [](State& s) -> Parsed<>
+    Parser<> p = [](ParseState& s) -> Parsed<>
     {
-        if (at_end(s))
+        if (s.at_end())
         {
             return tuple<>();
         }
@@ -135,7 +142,7 @@ Finisher<T> value(T t)
 template <typename P>
 Parser<P> lazy(Parser<P>(&f)())
 {
-    return [&f](State& s) -> Parsed<P>
+    return [&f](ParseState& s) -> Parsed<P>
     {
         static Parser<P> const p = f();
         return p(s);
@@ -144,10 +151,10 @@ Parser<P> lazy(Parser<P>(&f)())
 
 template <typename F,
     typename G = std::invoke_result_t<F>,
-    typename R = std::invoke_result_t<G,State&>>
+    typename R = std::invoke_result_t<G,ParseState&>>
 RParser<R> lazy(F const& f)
 {
-    return [f](State& s) -> R
+    return [f](ParseState& s) -> R
     {
         static auto const p = f();
         return p(s);
@@ -155,9 +162,9 @@ RParser<R> lazy(F const& f)
 }
 
 template <typename T>
-Parser<T> parse_token = [](State& s) -> Parsed<T>
+Parser<T> parse_token = [](ParseState& s) -> Parsed<T>
 {
-    T const* t = match_cur<T>(s);
+    T const* t = s.match<T>();
     
     if (!t)
         return nullopt;
@@ -168,15 +175,15 @@ Parser<T> parse_token = [](State& s) -> Parsed<T>
 template <typename... P1, typename... P2>
 Parser<P1..., P2...> operator>>(Parser<P1...> const& p1, Parser<P2...> const& p2)
 {
-    return [=](State& s) -> Parsed<P1..., P2...>
+    return [=](ParseState& s) -> Parsed<P1..., P2...>
     {
-        unsigned pos = s.pos;
+        unsigned const start_pos = s.pos();
 
         Parsed<P1...> r1 = p1(s);
 
         if (!r1)
         {
-            s.pos = pos;
+            s.set_pos(start_pos);
             return nullopt;
         }
 
@@ -184,7 +191,7 @@ Parser<P1..., P2...> operator>>(Parser<P1...> const& p1, Parser<P2...> const& p2
 
         if (!r2)
         {
-            s.pos = pos;
+            s.set_pos(start_pos);
             return nullopt;
         }
 
@@ -195,9 +202,9 @@ Parser<P1..., P2...> operator>>(Parser<P1...> const& p1, Parser<P2...> const& p2
 template <typename... P1, typename... P2>
 Parser<P1...> operator|(Parser<P1...> const& p1, Parser<P2...> const& p2)
 {
-    return [=](State& s) -> Parsed<P1...>
+    return [=](ParseState& s) -> Parsed<P1...>
     {
-        unsigned pos = s.pos;
+        unsigned const start_pos = s.pos();
     
         if (Parsed<P1...> r1 = p1(s))
         {
@@ -205,7 +212,7 @@ Parser<P1...> operator|(Parser<P1...> const& p1, Parser<P2...> const& p2)
         }
         else
         {
-            s.pos = pos;
+            s.set_pos(start_pos);
             return p2(s);
         }
     };
@@ -215,7 +222,7 @@ template <typename F, typename... P,
     typename R = std::invoke_result_t<F,P...>>
 RParser<R> operator>>(Parser<P...> const& p, F const& f)
 {
-    return [=](State& s) -> R
+    return [=](ParseState& s) -> R
     {
         Parsed<P...> r = p(s);
 
@@ -229,23 +236,23 @@ RParser<R> operator>>(Parser<P...> const& p, F const& f)
 template <typename P>
 Parser<vector<P>> _parse_many(Parser<P> const& p, Parser<P> const& q)
 {
-    return [=](State& s) -> Parsed<vector<P>>
+    return [=](ParseState& s) -> Parsed<vector<P>>
     {
         vector<P> rs;
 
-        unsigned pos = s.pos;
+        unsigned start_pos = s.pos();
         Parsed<P> r = p(s);
 
         while (true)
         {
             if (!r)
             {
-                s.pos = pos;
+                s.set_pos(start_pos);
                 return rs;
             }
             
             rs.push_back(std::get<0>(*r));
-            pos = s.pos;
+            start_pos = s.pos();
             r = q(s); // Note the q.
         }
     };

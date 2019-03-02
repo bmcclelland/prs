@@ -1,6 +1,6 @@
 #include "parser.hpp"
 #include "tokens.hpp"
-#include "state.hpp"
+#include "parsestate.hpp"
 #include "parsercombi.hpp"
 
 using namespace std;
@@ -180,7 +180,6 @@ Parser<ASTPtr> parse_var_decl()
         >> parse_name()
         >> match<AssignTok>() 
         >> parse_exp() 
-        >> match<SemiTok>()
         >> make_ast<ASTVarDecl>;
 }
 
@@ -191,15 +190,17 @@ Parser<ASTPtr> parse_assign()
         /= parse_name()
         >> match<AssignTok>()
         >> parse_exp() 
-        >> match<SemiTok>()
         >> make_ast<ASTAssign>;
 }
 
 Parser<ASTPtr> parse_stmt()
 {
+    static auto const stmt = parse_assign()
+                           | parse_var_decl();
+
     return TRACE
-        /= parse_assign()
-         | parse_var_decl();
+        /= stmt
+        >> match<SemiTok>();
 }
 
 Parser<ASTPtr> parse_block()
@@ -247,10 +248,9 @@ Parser<ASTPtr> parse_program()
 
 Parsed<ASTPtr> parse(vector<TokPtr>const& tokens)
 {
-    State state(tokens);
+    ParseState state(tokens);
     Parser<ASTPtr> parser = parse_program();
     Parsed<ASTPtr> result = parser(state);
-    state.tracer.finalize();
-    state.tracer.print();
+    state.print_trace();
     return result;
 }

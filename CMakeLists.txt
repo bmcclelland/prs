@@ -8,6 +8,7 @@ project(prs CXX)
 add_executable(prs 
     src/main.cpp
     src/parser.cpp
+    src/parsestate.cpp
     )
 
 target_link_libraries(prs

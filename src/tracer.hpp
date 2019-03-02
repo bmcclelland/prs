@@ -26,12 +26,12 @@ string to_string(TraceResult t)
 struct Trace
 {
     string name;
-    size_t depth;
+    unsigned depth;
     Trace* parent;
     vector<Trace> children;
     TraceResult result = TraceResult::undefined;
 
-    Trace(string _name, Trace* _parent, size_t _depth)
+    Trace(string _name, Trace* _parent, unsigned _depth)
         : name(_name)
         , depth(_depth)
         , parent(_parent)
@@ -43,8 +43,13 @@ class Tracer
 {
     Trace _root;
     Trace* _cur;
-    size_t _indent;
-      
+    unsigned _indent;
+
+    string indent(unsigned depth) const
+    {
+        return string(depth * _indent, ' ');
+    }
+
     void finalize(Trace& t, bool flag)
     {
         if (flag)
@@ -68,7 +73,7 @@ class Tracer
         }
     }
 
-    void print(Trace const& t) const
+    int print(Trace const& t) const
     {
         int color = [&]()
         {
@@ -89,17 +94,21 @@ class Tracer
 		};
         
         printColor(color);
-        std::cout << string(t.depth * _indent, ' ') << t.name << "\n";
+        std::cout << indent(t.depth) << t.name << "\n";
         printColor(0);
+
+        int count = 1;
 
         for (Trace const& c : t.children)
         {
-            print(c);
+            count += print(c);
         }
+
+        return count;
     }
 
     public:
-        Tracer(string root_name, size_t indent)
+        Tracer(string root_name, unsigned indent)
             : _root(root_name, nullptr, 0)
             , _cur(&_root)
             , _indent(indent)
@@ -129,7 +138,8 @@ class Tracer
     
         void print() const
         {
-            return print(_root);
+            int count = print(_root);
+            std::cout << indent(1) << count << " steps\n";
         }
 
 };
